@@ -1,0 +1,48 @@
+#!/usr/bin/env php
+<?php
+
+$script = array_shift( $argv );
+$conf   = array_shift( $argv );
+$url    = array_shift( $argv );
+
+// Build HTTP query: Query arguments to imbo follows, then if we have
+// any arguments for curl they follow a --
+$query  = [];
+
+while ($q = array_shift( $argv ) ) {
+    if ($q == '--') { break; }
+    $query[] = $q;
+}
+
+// Authentication details here
+include $conf;
+
+// Add a query parameter for public key if it differs from the user
+if ($user != $publicKey) {
+    $query[] = 'publicKey=' . $publicKey;
+}
+
+// The URI
+$uri = sprintf("%s?%s", $url, implode('&', $query));
+
+// Generate the token
+$accessToken = hash_hmac("sha256", $uri, $privateKey);
+
+// Generate a new query with the access token appended
+$query[] = 'accessToken=' . $accessToken;
+
+// And a new URI to match
+$uri = sprintf("%s?%s", $url, implode('&', $query));
+
+// Now we take the rest of the commandline arguments, shell quote them
+$qargv = array_map('escapeshellarg', $argv);
+
+// Generate a safe shell command 
+$cmd = "curl -s ".escapeshellarg($uri)." ".implode(" ",$qargv);
+
+// And execute....
+passthru($cmd);
+echo PHP_EOL;
+
+?>
+
