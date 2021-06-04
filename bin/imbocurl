@@ -1,9 +1,28 @@
 #!/usr/bin/env php
 <?php
 
+// This is not art, but it works
+
+function makeUri($url, $query) {
+    $uri = $url;
+    if ($query) {
+        $uri = $uri . "?" . implode('&', $query);
+    }
+    return $uri;
+}
+
+// Main
+
 $script = array_shift( $argv );
 $conf   = array_shift( $argv );
 $url    = array_shift( $argv );
+$image  = '';
+
+if ($argv[0] == '-w') {
+    array_shift( $argv );
+    $image = $argv[0];
+    array_shift( $argv );
+}
 
 // Build HTTP query: Query arguments to imbo follows, then if we have
 // any arguments for curl they follow a --
@@ -17,22 +36,42 @@ while ($q = array_shift( $argv ) ) {
 // Authentication details here
 include $conf;
 
-// Add a query parameter for public key if it differs from the user
-if ($user != $publicKey) {
-    $query[] = 'publicKey=' . $publicKey;
+if ($image) {
+    // Build write authentication
+    // https://imbo.readthedocs.io/en/latest/usage/api.html#signing-write-requests
+    // Construct URI
+    $uri = makeUri($url, $query);
+
+    $timestamp  = gmdate("Y-m-d\TH:i:s\Z"); // Current timestamp (UTC)
+    $data = implode("|", ['POST', $uri, $publicKey, $timestamp ] );
+    $signature = hash_hmac("sha256", $data, $privateKey);
+    
+    array_push( $argv,
+                '--data-binary', '@'.$image,
+                "-X", "POST",
+                "-H", "X-Imbo-PublicKey: " . $publicKey,
+                "-H", "X-Imbo-Authenticate-Signature: " . $signature,
+                "-H", "X-Imbo-Authenticate-Timestamp: " . $timestamp );
+
+} else {
+    // Build ordinary authentication
+
+    // Add a query parameter for public key if it differs from the user
+    if ($user != $publicKey) {
+        $query[] = 'publicKey=' . $publicKey;
+    }
+
+    // Construct URI
+    $uri = makeUri($url, $query);
+
+    // https://imbo.readthedocs.io/en/latest/usage/api.html#access-tokens
+    $accessToken = hash_hmac("sha256", $uri, $privateKey);
+
+    // Generate a new query with the access token appended
+    $query[] = 'accessToken=' . $accessToken;
+    // And a new URI to match
+    $uri = sprintf("%s?%s", $url, implode('&', $query));
 }
-
-// The URI
-$uri = sprintf("%s?%s", $url, implode('&', $query));
-
-// Generate the token
-$accessToken = hash_hmac("sha256", $uri, $privateKey);
-
-// Generate a new query with the access token appended
-$query[] = 'accessToken=' . $accessToken;
-
-// And a new URI to match
-$uri = sprintf("%s?%s", $url, implode('&', $query));
 
 // Now we take the rest of the commandline arguments, shell quote them
 $qargv = array_map('escapeshellarg', $argv);
@@ -41,8 +80,10 @@ $qargv = array_map('escapeshellarg', $argv);
 $cmd = "curl -s ".escapeshellarg($uri)." ".implode(" ",$qargv);
 
 // And execute....
+echo "---".PHP_EOL;
+echo "CMD: $cmd".PHP_EOL;
+echo "---".PHP_EOL;
 passthru($cmd);
-echo PHP_EOL;
 
 ?>
 
