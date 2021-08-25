@@ -7,3 +7,4 @@ docs/_build
 public/.htaccess
 .idea
 *~
+bin/*-auth.php
