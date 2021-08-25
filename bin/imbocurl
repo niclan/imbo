@@ -1,6 +1,18 @@
 #!/usr/bin/env php
 <?php
 
+/*
+  Usage:
+
+  Get some stuff:
+
+  Write image:
+     ./imbocurl ./bin/vgno-auth.php \
+       http://nuimbodev-app-01.int.vgnett.no/users/vgno/images/ \
+       -w /home/niclangf/Mars_landscape.jpg -- -i
+
+*/     
+
 // This is not art, but it works
 
 function makeUri($url, $query) {
@@ -44,6 +56,9 @@ if ($image) {
 
     $timestamp  = gmdate("Y-m-d\TH:i:s\Z"); // Current timestamp (UTC)
     $data = implode("|", ['POST', $uri, $publicKey, $timestamp ] );
+
+    echo "Sign: $data".PHP_EOL;
+    
     $signature = hash_hmac("sha256", $data, $privateKey);
     
     array_push( $argv,
