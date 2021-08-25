@@ -359,6 +359,7 @@ class Mongo implements DatabaseInterface {
                 array_fill_keys(['size', 'width', 'height', 'mime', 'extension', 'added', 'updated'], true)
             );
         } catch (MongoException $e) {
+            error_log("Unable to fetch image data: " . $e->getMessage());
             throw new DatabaseException('Unable to fetch image data', 500, $e);
         }
         if ($data === null) {
@@ -407,6 +408,7 @@ class Mongo implements DatabaseInterface {
                 ],
             ]);
         } catch (MongoException $e) {
+            error_log("Unable to fetch image data: " . $e->getMessage());
             throw new DatabaseException('Unable to fetch image data', 500, $e);
         }
 
